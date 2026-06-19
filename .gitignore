@@ -1,0 +1,21 @@
+# CLion
+.idea/
+
+# CMake
+build/
+cmake-build-*/
+
+# STM32编译产物
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+
+# MDK
+MDK-ARM/Debug/
+MDK-ARM/Objects/
+
+# Release
+Debug/
+Release/

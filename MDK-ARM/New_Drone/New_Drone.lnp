@@ -1,0 +1,27 @@
+--cpu Cortex-M3
+"new_drone\startup_stm32f103xb.o"
+"new_drone\main.o"
+"new_drone\gpio.o"
+"new_drone\tim.o"
+"new_drone\usart.o"
+"new_drone\stm32f1xx_it.o"
+"new_drone\stm32f1xx_hal_msp.o"
+"new_drone\stm32f1xx_hal_gpio_ex.o"
+"new_drone\stm32f1xx_hal_tim.o"
+"new_drone\stm32f1xx_hal_tim_ex.o"
+"new_drone\stm32f1xx_hal.o"
+"new_drone\stm32f1xx_hal_rcc.o"
+"new_drone\stm32f1xx_hal_rcc_ex.o"
+"new_drone\stm32f1xx_hal_gpio.o"
+"new_drone\stm32f1xx_hal_dma.o"
+"new_drone\stm32f1xx_hal_cortex.o"
+"new_drone\stm32f1xx_hal_pwr.o"
+"new_drone\stm32f1xx_hal_flash.o"
+"new_drone\stm32f1xx_hal_flash_ex.o"
+"new_drone\stm32f1xx_hal_exti.o"
+"new_drone\stm32f1xx_hal_uart.o"
+"new_drone\system_stm32f1xx.o"
+--library_type=microlib --strict --scatter "New_Drone\New_Drone.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "New_Drone.map" -o New_Drone\New_Drone.axf

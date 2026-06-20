@@ -12,7 +12,7 @@
  */
 void Motor_Set_Speed(Motor_Struct *motor) {
     if (motor->tim_compare>=1000) {
-        printf("motor_speed is error");
+        //printf("motor_speed is error");
         return;
     }
 

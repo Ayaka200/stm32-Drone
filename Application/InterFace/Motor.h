@@ -20,7 +20,7 @@ typedef struct {
 
         TIM_HandleTypeDef *tim;
         uint16_t tim_channel;
-        uint16_t tim_compare;
+        int16_t tim_compare;
 
 }Motor_Struct;
 void Motor_Set_Speed(Motor_Struct *motor);

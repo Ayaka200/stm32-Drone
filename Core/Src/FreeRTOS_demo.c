@@ -230,6 +230,7 @@ void COM_TASK(void * pvParameters) {
         }
         /*4.处理飞机的飞行状态*/
         App_Process_Flight_State();
+        //当飞机任务故障后，会一直等待故障处理完成消息
         /*5.回传电压*/
         float voltage=Bat_ADC_Read();
         //printf("Voltage: %.2f\r\n",voltage);

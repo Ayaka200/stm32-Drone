@@ -178,7 +178,8 @@ void App_Process_Flight_State(void) {
             break;
         case FAIL:
             /*1.处理失联故障，缓慢停止电机*/
-            /*code*/
+            //等待故障处理完成
+            ulTaskNotifyTake(pdTRUE,portMAX_DELAY);
             /*2.退回到正常状态*/
             vTaskDelay(1);
             flight_state=IDLE;

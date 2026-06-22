@@ -28,4 +28,5 @@ typedef  struct {
 void Com_PID_Caculate(PID_Struct * pid);
 void Com_PID_Calculate_Chain(PID_Struct * outer_pid, PID_Struct * inner_pid);
 int16_t Com_Limit(int16_t input, int16_t min, int16_t max);
+float Deadzone(float x, float d);
 #endif //NEW_DRONE_COM_PID_H

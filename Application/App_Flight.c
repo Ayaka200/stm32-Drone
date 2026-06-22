@@ -8,19 +8,20 @@ Gyro_Accel_Struct gyro_accel_data={0};
 Euler_Struct euler_angle={0};
 Gyro_Struct gyro_last_data={0};
 float gyro_z_sum;
-
+float K_att = 1.0f;   // 姿态控制增益
+float Yaw_Target = 0;   //记录起飞前的Yaw
 //俯仰角的PID结构体
-PID_Struct Pitch_PID={.Kp=5.00,.Ki=0.00,.Kd=0.00};
+PID_Struct Pitch_PID={.Kp=6.0f,.Ki=0.00,.Kd=0.00};
 //Y轴角速度的结构体，用作俯仰角PID的内环
-PID_Struct Gyro_y_PID={.Kp=-3.00,.Ki=0.00,.Kd=-0.40};
+PID_Struct Gyro_y_PID={.Kp=1.8f,.Ki=0.00,.Kd=0.12f};
 //横滚角的PID结构体
-PID_Struct Roll_PID={.Kp=-5.00,.Ki=0.00,.Kd=0.00};
+PID_Struct Roll_PID={.Kp=6.0f,.Ki=0.00,.Kd=0.00};
 //X轴角速度的结构体，用作横滚角PID的内环
-PID_Struct Gyro_x_PID={.Kp=3.00,.Ki=0.00,.Kd=0.40};
+PID_Struct Gyro_x_PID={.Kp=1.8f,.Ki=0.00,.Kd=0.12f};
 //偏航角的PID结构体
-PID_Struct Yaw_PID={.Kp=2.00,.Ki=0.00,.Kd=0.00};
+PID_Struct Yaw_PID={.Kp=2.5f,.Ki=0.00,.Kd=0.00};
 //Z轴角速度的结构体，用作偏航角PID的内环
-PID_Struct Gyro_z_PID={.Kp=5.00,.Ki=0.00,.Kd=0.00};
+PID_Struct Gyro_z_PID={.Kp=3.0f,.Ki=0.00,.Kd=0.00};
 
 /*电机结构体*/
 //定义电机控制结构体0代表上，1代表下，left_0代表左上
@@ -84,7 +85,7 @@ void App_Flight_Get_Euler_Angle(void) {
     // //任务6ms执行一次，每次执行都偶会读取一次角速度，角速度×持续的时间=该任务时段转过的角度，进行累加得到累计转的角度
     /*3.使用移植的四元姿态解算计算欧拉角*/
     Common_IMU_GetEulerAngle(&gyro_accel_data,&euler_angle,0.006);
-   // printf("%.2f,%.2f,%.2f\n",euler_angle.pitch,euler_angle.roll,euler_angle.yaw);
+    //printf("%.2f,%.2f,%.2f\n",euler_angle.pitch,euler_angle.roll,euler_angle.yaw);
 }
 
 /**
@@ -114,13 +115,25 @@ void App_Flight_PID_Process(void) {
     /*5.计算俯仰角的PID的值*/
     //串级PID控制需填入外环的目标值和测量值，以及内环的测量值
     //数值转换，偏航角需控制在±10°，而receive_data的范围在0~1000.
-    Yaw_PID.Target=(receive_data.yaw-500)/50.0;
+    //Yaw_PID.Target=(receive_data.yaw-500)/50.0;
+    Yaw_Target = euler_angle.yaw;
+    Yaw_PID.Target = Yaw_Target;
     //外环的真实值是当前的俯仰角
     Yaw_PID.Actual=euler_angle.yaw;
     //内环的真实值是当前Y轴的角速度
     Gyro_z_PID.Actual=(gyro_accel_data.gyro.gyro_z* 2000.0 / 32768.0);
     /*6.进行PID计算*/
+    //printf("Before PID Target=%.2f\r\n",Yaw_PID.Target);
     Com_PID_Calculate_Chain(&Yaw_PID,&Gyro_z_PID);
+    //Gyro_z_PID.Output = 0;
+    /*7.输出死区*/
+    Gyro_y_PID.Output = Deadzone(Gyro_y_PID.Output, 0.2f);
+    Gyro_x_PID.Output = Deadzone(Gyro_x_PID.Output, 0.2f);
+    Gyro_z_PID.Output = Deadzone(Gyro_z_PID.Output, 0.2f);\
+    /*8.输出限幅*/
+    Com_Limit(Gyro_y_PID.Output,-200,200);
+    Com_Limit(Gyro_x_PID.Output,-200,200);
+    Com_Limit(Gyro_z_PID.Output,-200,200);
 
 }
 
@@ -141,10 +154,19 @@ void App_Flight_Control_Motor(void) {
         case NORMAL:
         /*当飞机处于正常状态时*/
         //控制俯仰角->向前飞时，俯仰角的误差为正->需反馈一个向后飞的效果->前两个电机转速加快，后两个转的慢。
-            Left_0_Motor.tim_compare=receive_data.thr+Gyro_y_PID.Output+Gyro_x_PID.Output-Gyro_z_PID.Output;
-            Left_1_Motor.tim_compare=receive_data.thr-Gyro_y_PID.Output+Gyro_x_PID.Output+Gyro_z_PID.Output;
-            Right_0_Motor.tim_compare=receive_data.thr+Gyro_y_PID.Output-Gyro_x_PID.Output-Gyro_z_PID.Output;
-            Right_1_Motor.tim_compare=receive_data.thr-Gyro_y_PID.Output-Gyro_x_PID.Output+Gyro_z_PID.Output;
+            Left_0_Motor.tim_compare=receive_data.thr-K_att*Gyro_y_PID.Output+K_att*Gyro_x_PID.Output+K_att*Gyro_z_PID.Output/**/;
+            Left_1_Motor.tim_compare=receive_data.thr+K_att*Gyro_y_PID.Output+K_att*Gyro_x_PID.Output-K_att*Gyro_z_PID.Output/**/;
+            Right_0_Motor.tim_compare=receive_data.thr-K_att*Gyro_y_PID.Output-K_att*Gyro_x_PID.Output-K_att*Gyro_z_PID.Output/**/;
+            Right_1_Motor.tim_compare=receive_data.thr+K_att*Gyro_y_PID.Output-K_att*Gyro_x_PID.Output+K_att*Gyro_z_PID.Output/**/;
+            //printf("Pitch=%.2f GyroOut=%.2f GyroY=%f\r\n",euler_angle.pitch,Gyro_y_PID.Output,gyro_accel_data.gyro.gyro_y * 2000.0 / 32768.0);
+            //printf("Pitch=%.2f GyroOut=%.2f GyroTarget=%.2f\r\n",euler_angle.pitch,Gyro_y_PID.Output,Gyro_y_PID.Target);
+            //printf("Roll=%.2f GyroOut=%.2f GyroTarget=%.2f\r\n",euler_angle.roll,Gyro_x_PID.Output,Gyro_x_PID.Target);
+            //printf("Roll=%.2f GyroOut=%.2f GyroX=%f\r\n",euler_angle.roll,Gyro_x_PID.Output,gyro_accel_data.gyro.gyro_x * 2000.0 / 32768.0);
+            //printf("Output=%.2f Left_0=%d Right0=%d Left_1=%d Right1=%d\r\n",Gyro_z_PID.Output,Left_0_Motor.tim_compare,Right_0_Motor.tim_compare,Left_1_Motor.tim_compare,Right_1_Motor.tim_compare);
+            //printf("Target=%.2f Actual=%.2f Output=%.2f\r\n",Gyro_x_PID.Target,Gyro_x_PID.Actual,Gyro_x_PID.Output);
+            //printf("Target=%.2f Actual=%.2f Output=%.2f\r\n",Gyro_y_PID.Target,Gyro_y_PID.Actual,Gyro_y_PID.Output);
+            //printf("Target=%.2f Actual=%.2f PitchOut=%.2f GyroOut=%.2f\r\n",Pitch_PID.Target,Pitch_PID.Actual,Pitch_PID.Output,Gyro_y_PID.Output);
+            //printf("Yaw=%.2f YawTarget=%.2f YawActual=%.2f GyroZOut=%.2f\r\n",euler_angle.yaw,Yaw_PID.Target,Yaw_PID.Actual,Gyro_z_PID.Output);
             break;
         case FIX_HEIGHT:
 
@@ -171,13 +193,20 @@ void App_Flight_Control_Motor(void) {
     Left_1_Motor.tim_compare=Com_Limit(Left_1_Motor.tim_compare,0,800);
     Right_0_Motor.tim_compare=Com_Limit(Right_0_Motor.tim_compare,0,800);
     Right_1_Motor.tim_compare=Com_Limit(Right_1_Motor.tim_compare,0,800);
-    /*安全限制*/
-    if (receive_data.thr<50) {
-        Left_0_Motor.tim_compare=0;
-        Left_1_Motor.tim_compare=0;
-        Right_0_Motor.tim_compare=0;
-        Right_1_Motor.tim_compare=0;
+
+    /* 安全限制 */
+    if(receive_data.thr < 50)
+    {
+        Yaw_PID.Target = euler_angle.yaw;   //防止第二次起飞时，Yaw值未刷新导致无法正常起飞
+        //printf("Set Target=%.2f\r\n",Yaw_PID.Target);
+        Left_0_Motor.tim_compare = 0;
+        Left_1_Motor.tim_compare = 0;
+        Right_0_Motor.tim_compare = 0;
+        Right_1_Motor.tim_compare = 0;
+
     }
+
+
     /*设置电机速度*/
     Motor_Set_Speed(&Left_0_Motor);
     Motor_Set_Speed(&Left_1_Motor);

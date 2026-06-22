@@ -29,7 +29,7 @@ void Com_PID_Calculate_Chain(PID_Struct * outer_pid, PID_Struct * inner_pid) {
     /*1.先计算外环PID的Output*/
     Com_PID_Caculate(outer_pid);
     /*2.将外环的输出值作为内环目标值进行计算*/
-    outer_pid->Output=inner_pid->Target;
+    inner_pid->Target=outer_pid->Output;
     Com_PID_Caculate(inner_pid);
 }
 
@@ -48,4 +48,20 @@ int16_t Com_Limit(int16_t input, int16_t min, int16_t max) {
         return max;
     }
     return input;
+}
+
+/**
+ * @brief 输出死区处理
+ * @param x 输出
+ * @param d 死区范围
+ * @return  稳定的输出
+ */
+float Deadzone(float x, float d)
+{
+    if (x > d)
+        return x - d;
+    else if (x < -d)
+        return x + d;
+    else
+        return 0;
 }
